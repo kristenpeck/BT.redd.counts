@@ -27,6 +27,21 @@ vignettes/*.pdf
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
 
+# shapefiles
+*.dbf
+*.prj
+*.sbn
+*.sbx
+*.shp
+*.shp.xml
+*.shx
+*.cpg
+
+#other
+*.png
+
+
+
 # knitr and R markdown default cache directories
 *_cache/
 /cache/
