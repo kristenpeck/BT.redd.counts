@@ -101,6 +101,10 @@ counts <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Counts")
 
 str(counts)
 
+counts <- counts %>% 
+  left_join(visits[,1:8], by="Site_ID") %>% 
+  filter(Region %in% "Peace")
+
 #check that site IDs have a match in the visits table. If this comes up with 0 data, 
 # there are no stragglers
 
@@ -150,8 +154,60 @@ count_pts11 <- st_transform(count_pts11, crs=3005)
 count_pts1 <- st_join(count_pts10,count_pts11)
 count_pts <- st_join(count_pts1, count_pts9)
 
+count_pts <- count_pts10
+
 mapview(count_pts)
 
+
+# library(bcdata)
+# 
+#  bc <- bcdc_query_geodata('7-5m-provinces-and-states-the-atlas-of-canada-base-maps-for-bc') %>% 
+#    filter(ENGLISH_NAME == 'British Columbia') %>% 
+#    collect()
+#  bc
+# 
+#   Peace <- bcdc_query_geodata('WHSE_ADMIN_BOUNDARIES.EADM_WLAP_REGION_BND_AREA_SVW') %>% 
+#     filter(REGION_NAME == 'Peace') %>% 
+#     collect()
+#   Peace 
+#   
+#  EDU.Peace <- bcdc_query_geodata('WHSE_LAND_AND_NATURAL_RESOURCE.EAUBC_ECO_DRAINAGE_UNITS_SP') %>%
+#     filter(INTERSECTS(Peace)) %>% 
+#     collect()
+#   
+#  bb.EDU <- st_bbox(EDU.Peace)
+#  
+#  lks.mapping <- bcdc_query_geodata('cb1e3aba-d3fe-4de1-a2d4-b8b6650fb1f6') %>%
+#   filter(AREA_HA > 10000) %>%
+#   #filter(INTERSECTS(Peace)) %>% 
+#    collect()
+#  
+#  
+#   ggplot()+
+#     geom_sf(data=bc, fill="white")+
+#     geom_sf(data=EDU.Peace, fill="grey")+
+#     geom_sf(data=Peace, colour = "black",fill="transparent", size=2)+
+#     geom_sf(data=lks.mapping, col="blue")+
+#     geom_sf_label(data=EDU.Peace, aes(label = ECO_DRAINAGE_UNIT))+
+#     coord_sf(xlim = c(bb.EDU$xmin,bb.EDU$xmax), ylim = c(bb.EDU$ymin, bb.EDU$ymax), expand = FALSE)
+#   
+mapview(Peace)+mapview(count_pts)
+  
+mapview(Peace, col.regions=NA, legend=F)+mapview(count_pts, zcol = "Watershed", legend = TRUE)
+  
+established.raw = st_read("Region_9_real_bull_trout_WHAs.shp")
+established <- st_transform(established.raw, crs=3005)
+established.buff <- st_buffer(established, dist = 1000)
+
+
+proposed.raw = st_read("wha_9-166to171_Corrected.shp")
+proposed <- st_transform(proposed.raw, crs=3005)
+proposed.buff <- st_buffer(proposed, dist = 1000)
+
+mapview(Peace, col.regions=NA, legend=F)+mapview(established.buff, lwd=2)+
+          mapview(proposed.buff, col.regions="red", lwd=2)
+mapview(established.buff, map.types = c("Esri.WorldTerrain"))+
+  mapview(proposed.buff, col.regions="red")
 
 #create table with years vs. streams with total redds
 
@@ -164,18 +220,54 @@ visit.yr <- visits %>%
   dplyr::group_by(Location, Year) %>% 
   dplyr::summarise(survey.yrs = unique(Year), start.date = date[1], 
                    total.redds = sum(all.redds),
-                   total.test.redds = sum(`Test Redd`)) %>% 
+                   total.test.redds = sum(`Test Redd`),
+                   watershed = unique(Watershed)) %>% 
   arrange(Location)
 
 write.csv(visit.yr, "visit.yr.csv", row.names = F)
 
 
 
+visit.yr.liard <- visit.yr %>% 
+  filter(watershed %in% "Liard")
+
+visit.yr.peace <- visit.yr %>% 
+  filter(watershed %in% "Peace")
+
+visit.yr.halfway <- visit.yr %>% 
+  filter(watershed %in% "Halfway")
+
+(bar.watershed <- ggplot(visit.yr.peace, aes(x=Year, y=total.redds, fill=Location))+
+    geom_bar(position="stack", stat="identity")+
+    theme_bw()+
+    theme(axis.text.x = element_text(angle = 60, hjust = 1, size=12), 
+          panel.grid.minor = element_blank())+
+    scale_x_continuous(breaks =seq(min(visit.yr.peace$Year),max(visit.yr.peace$Year),1))+
+    labs(x="Year", y="total redds", 
+         fill = "Stream"))
+
+
+unique(visit.yr$Location)
 
 
 
+ggplot(visit.yr.peace)+
+  geom_line(aes(x=Year, y=total.redds, colour=Location),
+            size=2, na.rm=F)+
+  geom_point(aes(x=Year, y=total.redds, colour=Location), size = 2)+
+  theme_bw()+
+  scale_x_continuous(breaks =seq(min(visit.yr.peace$Year),max(visit.yr.peace$Year),1))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=12),
+        panel.grid.minor = element_blank())
 
-
+ggplot(visit.yr.liard)+
+  geom_line(aes(x=Year, y=total.redds, colour=Location),
+            size=2, na.rm=F)+
+  geom_point(aes(x=Year, y=total.redds, colour=Location), size = 2)+
+  theme_bw()+
+  scale_x_continuous(breaks =seq(min(visit.yr.liard$Year),max(visit.yr.liard$Year),1))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=12),
+        panel.grid.minor = element_blank())
 
 
 
