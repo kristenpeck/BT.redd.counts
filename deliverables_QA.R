@@ -4,6 +4,7 @@
 #Author: Kristen Peck
 
 #Date 3-April-2020
+#Updated 23-March-2021
 
 #Packages
 library(plyr)
@@ -19,7 +20,9 @@ library(mapview)
 
 # Load data
 
-visits <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Visit")
+#visits <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Visit")
+visits <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV2.xlsx", sheet = "Visit")
+
 
 str(visits)
 
@@ -31,30 +34,33 @@ anyDuplicated(visits$Site_ID)
 
 #distribution of # of surveys over the years by region
 ggplot(data=visits)+
-  geom_histogram(aes(Year, fill=Region), binwidth=2)
+  geom_histogram(aes(Year, fill=Region), binwidth=1)+
+  labs(y="# of Site Visits") +
+  scale_x_continuous(breaks = seq(min(visits$Year), max(visits$Year),2),
+                     labels = seq(min(visits$Year), max(visits$Year),2))
 
 #surveys where date is missing:
-(no_date <- visits %>% 
-  mutate(date = ymd(paste(Year,Month,Day))) %>% 
-  filter(is.na(date)))
+
+(no_date <- visits[is.na(ymd(paste(visits$Year,visits$Month,visits$Day))),])
 
 
 #surveys in the Peace where method is missing
-no_method_peace <- visits %>% 
+(no_method_peace <- visits %>% 
   filter(is.na(`method (walk/flight)`)) %>% 
-  filter(Region %in% "Peace")
-no_method_peace
+  filter(Region %in% "Peace"))
 
 
 
 
 #### QA- Barriers ####
 
-barrier <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Barrier")
+#barrier <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Barrier")
+barrier <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV2.xlsx", sheet = "Barrier")
 
 str(barrier)
 
-#check that site IDs have a match in the visits table. If this comes up with 0 data, there are no stragglers
+#check that site IDs have a match in the visits table. If this comes up with 0 data, 
+  #that's good
 
 barrier %>% 
   anti_join(visits, by="Site_ID")
@@ -64,10 +70,17 @@ barrier %>%
 barrier %>% 
   filter(is.na(UTME))
 
+visits[which(visits$Site_ID %in% barrier[is.na(barrier$UTME),"Site_ID"]),]
+
+
 #any need UTM zone filled in? 
 
 barrier %>% 
   filter(is.na(UTMZ))
+
+
+### Map- Barriers ####
+
 
 unique(barrier$UTMZ) #need to read in as UTM zones individually, then transform to BC Albers
 #map barriers:
@@ -97,9 +110,11 @@ mapview(barrier_pts)
 
 #### QA- Counts ####
 
-counts <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Counts")
+#counts <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Counts")
+counts <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV2.xlsx", sheet = "Counts")
 
 str(counts)
+unique()
 
 counts <- counts %>% 
   left_join(visits[,1:8], by="Site_ID") %>% 
@@ -113,7 +128,7 @@ counts %>%
 
 
 
-### MAPS ####
+### Maps - Counts ####
 #any without a location?
 
 counts %>% 
