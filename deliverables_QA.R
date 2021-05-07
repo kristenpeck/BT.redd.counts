@@ -21,7 +21,7 @@ library(mapview)
 # Load data
 
 #visits <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Visit")
-visits <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV2.xlsx", sheet = "Visit")
+visits <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV3.xlsx", sheet = "Visit")
 
 
 str(visits)
@@ -30,11 +30,13 @@ str(visits)
 unique(visits$Region)
 
 #all site IDs should be unique. Any duplicates?
-anyDuplicated(visits$Site_ID)
+anyDuplicated(paste0(visits$Site_ID,visits$Survey_ID))
+visits[duplicated(paste0(visits$Site_ID,visits$Survey_ID)) %in% TRUE,]
 
-#distribution of # of surveys over the years by region
+# # of survey rows over the years by region
+
 ggplot(data=visits)+
-  geom_histogram(aes(Year, fill=Region), binwidth=1)+
+  geom_histogram(aes(Year, fill=Region), binwidth=1, position = "dodge")+
   labs(y="# of Site Visits") +
   scale_x_continuous(breaks = seq(min(visits$Year), max(visits$Year),2),
                      labels = seq(min(visits$Year), max(visits$Year),2))
@@ -55,7 +57,7 @@ ggplot(data=visits)+
 #### QA- Barriers ####
 
 #barrier <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Barrier")
-barrier <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV2.xlsx", sheet = "Barrier")
+barrier <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV3.xlsx", sheet = "Barrier")
 
 str(barrier)
 
@@ -111,14 +113,9 @@ mapview(barrier_pts)
 #### QA- Counts ####
 
 #counts <- read_xlsx("BTSurveyData2019-mod_V3-QA.xlsx", sheet = "Counts")
-counts <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV2.xlsx", sheet = "Counts")
+counts <- read_xlsx("BTSurveyData2019-mod_V3-QA_TedV3.xlsx", sheet = "Counts")
 
 str(counts)
-unique()
-
-counts <- counts %>% 
-  left_join(visits[,1:8], by="Site_ID") %>% 
-  filter(Region %in% "Peace")
 
 #check that site IDs have a match in the visits table. If this comes up with 0 data, 
 # there are no stragglers
@@ -127,16 +124,21 @@ counts %>%
   anti_join(visits, by="Site_ID")
 
 
+# join counts and visits
+
+counts.visits <- counts %>% 
+  left_join(visits, by="Site_ID") %>% 
+  filter(Region %in% "Peace")
 
 ### Maps - Counts ####
 #any without a location?
 
-counts %>% 
+counts.visits %>% 
   filter(is.na(UTME))
 
 #any need UTM zone filled in? 
 
-counts %>% 
+counts.visits %>% 
   filter(!is.na(UTME) & is.na(UTMZ))
 counts$UTMZ <- ifelse(is.na(counts$UTME), NA, counts$UTMZ)
 counts %>% 
@@ -154,7 +156,9 @@ count_pts9 <- st_transform(count_pts9, crs=3005)
 
 
 UTM10 <- counts %>% 
-  filter(UTMZ %in% 10)
+  filter(UTMZ %in% 10, !is.na(UTME))
+
+
 count_pts10 <- st_as_sf(UTM10, coords = c("UTME", "UTMN"), 
                       crs = 3157)
 count_pts10 <- st_transform(count_pts10, crs=3005)
